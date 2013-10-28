@@ -1,0 +1,256 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style>
+      html, body {width:100%; height:100%; padding: 0; margin: 0;}
+      #map {width: 100%; /*height:100%;*/ position: absolute; top: 40px; bottom: 0px; background: black; z-index:1;}
+      div.cartodb-popup div.cartodb-popup-content {max-height:none | inherit}
+	  #footer {
+      position:absolute;
+      bottom:0px;
+      left:0px;
+      right:0px;
+      background:#fff;
+      z-index:999;
+      overflow:auto;
+      /*height:160px;*/
+      padding:5px;
+      opacity:0.95;
+      }
+	  h2{color:#fff;}
+      .leaflet-container .leaflet-control-zoom {margin-top:55;}
+
+	ul.inline > li, ol.inline > li {
+    display: inline-block;
+    padding-right: 5px;
+    padding-left: 5px;
+}
+    </style>
+    <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v2/themes/css/cartodb.css" />
+    <!--[if lte IE 8]>
+        <link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v2/themes/css/cartodb.ie.css" />
+    <![endif]-->
+	<!-- NOTE WE'RE USING A BOOTSWATCH THEME INSTEAD OF BOOTSTRAP STANDARD-->
+    <link href="http://netdna.bootstrapcdn.com/bootswatch/2.3.2/cerulean/bootstrap.min.css" rel="stylesheet">
+	<!--HERE YOU CAN CUSTOMIZE THE POPUP INFOWINDOW WITH DATA FROM YOU SOURCE TABLE; VARIABLES IN THE MUSTACHE TAGS-->
+    <script type="infowindow/html" id="infowindow_template">
+      <div class="cartodb-popup">
+         <a href="#close" class="cartodb-popup-close-button close">x</a>
+         <div class="cartodb-popup-content-wrapper">
+           <div class="cartodb-popup-content">
+             <!-- 'content.data.whatever' CONTAINS THE FIELD DATA, THE REST IS HTML -->
+             <h3 style="color:#333;">{{content.data.county}}, {{content.data.state}}</h3><hr>
+             <h4 style="color:#333;">Plan: {{content.data.plan_marketing_name}}</h4>
+             <table class="table table-striped table-condensed">
+               <tr>
+                 <th>Type</th>
+                 <th>Premium</th>
+               </tr>
+              <tr>
+                <td>Ind., 27-50</td>
+                <td>${{content.data.premium_adult_individual_age_27}}</td>
+              </tr>
+              <tr>
+                <td>Ind., 50+</td>
+                <td>${{content.data.premium_adult_individual_age_50}}</td>
+              </tr>
+              <tr>
+                <td>Family</td>
+                <td>${{content.data.premium_family}}</td>
+              </tr>
+              <tr>
+                <td>Single-Parent Fam.</td>
+                <td>${{content.data.premium_single_parent_family}}</td>
+              </tr>
+              <tr>
+                <td>Couple</td>
+                <td>${{content.data.premium_couple}}</td>
+              </tr>
+              <tr>
+                <td>Child</td>
+                <td>${{content.data.premium_child}}</td>
+              </tr>
+             </table>
+			       <hr>         
+           </div>
+         </div>
+         <div class="cartodb-popup-tip-container"></div>
+      </div>
+    </script>
+  </head>
+  <body onload="init()">
+    <!--ADD THE MAP ELEMENT-->
+    <div id='map'></div>
+    <!--SOME BOOTSTRAP NAV BOILERPLATE TO MAKE THINGS SIMPLE AND APPEALING-->
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="brand">ACA Qualified Health Plans</a>
+          <ul class="nav">
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown"><small><i class="icon-user icon-white"></i> Coverage Type <b class="caret"></b></small></a>
+              <ul class="dropdown-menu">
+                <li><a class="coverage" href="#" id="premium_adult_individual_age_27">Adult, 27-50</a></li>
+                <li><a class="coverage" href="#" id="premium_adult_individual_age_50">Adult, 50+</a></li>
+                <li><a class="coverage active" href="#" id="premium_family">Family</a></li>
+                <li><a class="coverage" href="#" id="premium_single_parent_family">Single-Parent Family</a></li>
+                <li><a class="coverage" href="#" id="premium_couple">Couple</a></li>
+                <li><a class="coverage" href="#" id="premium_child">Child</a></li>
+              </ul>
+            </li>
+            <!--<li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown"><small><i class="icon-download icon-white"></i> Download <b class="caret"></b></small></a>
+              <ul class="dropdown-menu">
+                <li><a id="downkml" href="#" target="_blank">KML</a></li>
+              </ul>
+            </li>-->
+			<!--TRIGGERS A MODAL WINDOW WITH ALL YOUR EXPLANATORY INFORMATION; NICE TO HAVE HIDDEN MOST OF THE TIME-->
+            <li><a href="#myModal" role="button" class="pull-right" data-toggle="modal"><small>About</small></a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="container-narrow">
+	<!--MODAL POPUP CONTENT-->
+    <div id="myModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+        <h3 id="myModalLabel">About</h3>
+      </div>
+      <div class="modal-body">
+        <p>The Affordable Care Act (ACA) launched in October 2013, tasked with providing an insurance exchange for the 32 states that opted not to organize their own. This federally-administered exhange is comprised of over 77,000 individual insurance plans. Using data on these plans available at <a href="http://data.healthcare.gov" target="_blank">data.healthcare.gov</a>, this map provides a window onto the geographic variations in policy costs.</p>
+
+        <p><strong>Plan levels are symbolized by size:</strong></p>
+        <img width="250px" src="legend1.png"/>
+        <p><strong>. . . And policy premiums are symbolized by color:</strong></p>
+        <table  BORDER="1" RULES="NONE" FRAME="BOX" bordercolor="#1" style="background-color:#FFFFFF" width="340" cellpadding="8" cellspacing="1">
+              <tr>
+              <td style="background-color:#FFFFCC" width="40"> </td>
+              <td style="background-color:#A1DAB4" width="40"> </td>
+              <td style="background-color:#41B6C4" width="40"> </td>
+              <td style="background-color:#2C7FB8" width="40"> </td>
+              <td style="background-color:#253494" width="40"> </td>
+              </tr>
+              <tr>
+              <td><small><$300</small></td>
+              <td><small>$300-500</small></td>
+              <td><small>$500-800</small></td>
+              <td><small>$800-1500</small></td>
+              <td><small>>$1500</small></td>
+              </tr>
+            </table>
+            <hr>
+        <p><small><a href="http://geosprocket.cartodb.com/api/v2/sql?q=SELECT%20*%20FROM%20qhp_individual_medical_landscape_102513a&format=csv">Click here</a> to download the full dataset (CSV format, 18MB)</small></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
+      </div>
+    </div>
+	
+	<div id="footer">
+		<div class="container">
+				<ul class="inline">
+					<li><h2 class="switch-title">Monthly Premium: Family </h2></li>
+					<li class="divider"></li>
+					<li style="vertical-align:middle;" >
+            <table  BORDER="1" RULES="NONE" FRAME="BOX" bordercolor="#1" style="background-color:#FFFFFF" width="340" cellpadding="8" cellspacing="1">
+              <tr>
+              <td style="background-color:#FFFFCC" width="40"> </td>
+              <td style="background-color:#A1DAB4" width="40"> </td>
+              <td style="background-color:#41B6C4" width="40"> </td>
+              <td style="background-color:#2C7FB8" width="40"> </td>
+              <td style="background-color:#253494" width="40"> </td>
+              </tr>
+              <tr>
+              <td><small><$300</small></td>
+              <td><small>$300-500</small></td>
+              <td><small>$500-800</small></td>
+              <td><small>$800-1500</small></td>
+              <td><small>>$1500</small></td>
+              </tr>
+            </table>
+          </li>
+				</ul>  
+         </div>
+    </div>
+	
+  </body>
+  <script>
+      //WRAP THE MAP ACTION 
+    var map;
+    
+    function init() {
+    // INITIATE LEAFLET MAP    
+    map = new L.Map('map', {
+      center: [40, -90],
+      zoom: 4,
+      minZoom: 2,
+      maxZoom: 14
+    });
+	
+    //CALL SOME COMPELLING MAPBOX TILES AS A BASE    
+    L.tileLayer('http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png', {
+      attribution: '<a href="http://mapbox.com/about/maps/" target="_blank">w/ Mapbox</a>'
+    }).addTo(map);
+    
+    //DEFINE A REFERENCE OVERLAY TO PLACE ON TOP OF THE BUILDINGS:
+    var reference = L.tileLayer('http://{s}.tile.stamen.com/toner-labels/{z}/{x}/{y}.png');
+    
+    //GIVE CARTODB THE PARAMETERS OF YOUR TABLE BY VIZ.JSON - 
+    var current_coverage = $('.coverage.active').attr('id');;
+	
+    var layerUrl = 'http://geosprocket.cartodb.com/api/v1/viz/qhp_individual_medical_landscape_102513a/viz.json';
+    var layerOptions = {
+	        query: "SELECT * FROM {{table_name}} WHERE " + current_coverage + "> 0 ORDER BY " + current_coverage + " DESC",
+	        tile_style: "Map{buffer-size:512;}#{{table_name}}[" + current_coverage + ">0]{::circle1[metal_level='Platinum'][" + current_coverage + ">0]{marker-width:50;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle2[metal_level='Gold'][" + current_coverage + ">0]{marker-width:40;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle3[metal_level='Silver'][" + current_coverage + ">0]{marker-width:30;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle4[metal_level='Bronze'][" + current_coverage + ">0]{marker-width:20;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle5[metal_level='Catastrophic'][" + current_coverage + ">0]{marker-width:10;marker-line-width:0.5;marker-line-color:#e2e3e3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}}"
+		}
+
+		//Define layers array so you can put it through a julienne slicer later
+		var layers = [];
+		
+    cartodb.createLayer(map, layerUrl, layerOptions)
+	        .on('done', function (layer) {
+	        layer.infowindow.set('template', $('#infowindow_template').html());
+	        map.addLayer(layer);
+			layers.push(layer);
+	        map.addLayer(reference);
+
+	    }).on('error', function () {
+	        //log the error
+	    });
+		
+		function updateQuery() {
+			layers[0].setOptions ({
+				query: "SELECT * FROM {{table_name}} WHERE " + current_coverage + "> 0 ORDER BY " + current_coverage + " DESC",
+				tile_style: "Map{buffer-size:512;}#{{table_name}}[" + current_coverage + ">0]{::circle1[metal_level='Platinum'][" + current_coverage + ">0]{marker-width:50;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle2[metal_level='Gold'][" + current_coverage + ">0]{marker-width:40;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle3[metal_level='Silver'][" + current_coverage + ">0]{marker-width:30;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle4[metal_level='Bronze'][" + current_coverage + ">0]{marker-width:20;marker-line-width:0.5;marker-line-color:#E2E3E3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}::circle5[metal_level='Catastrophic'][" + current_coverage + ">0]{marker-width:10;marker-line-width:0.5;marker-line-color:#e2e3e3;marker-line-opacity:0.7;marker-opacity:0.9;marker-placement:point;marker-type:ellipse;marker-allow-overlap:true;marker-clip:false;marker-multi-policy:each;[" + current_coverage + "<=300]{marker-fill:#FFFFCC;}[" + current_coverage + ">300][" + current_coverage + "<=500]{marker-fill:#A1DAB4;}[" + current_coverage + ">500][" + current_coverage + "<=800]{marker-fill:#41B6C4;}[" + current_coverage + ">800][" + current_coverage + "<=1500]{marker-fill:#2C7FB8;}[" + current_coverage + ">1500]{marker-fill:#253494;}}}"
+			});
+		}
+
+    
+    var hash = new L.Hash(map);
+    
+	//THEMATIC FILTER: ACTIVE coverage
+		//To redraw layers with the coverage attribute passed along		
+		$('.coverage').click(function () {
+			$('.coverage').removeClass('active');
+			$(this).addClass('active');
+			$('h2.switch-title').text("Monthly Premium: " + $('.coverage.active').text());
+			current_coverage = $(this).attr('id');
+			updateQuery();
+		});
+	
+    //KML FORMAT,            
+    $('#downkml').click(function () {
+      //NOTE THAT THIS IS AN ENCODED SQL STRING IN A URL. BEST THING EVER.
+      var new_sql = "http://geosprocket.cartodb.com/api/v2/sql?q=SELECT%20*%20FROM%20btv_bg_90_10&format=csv";
+    
+      $(this).attr("href", new_sql);
+    });
+    
+    }
+  </script>
+  <!--libraries kept to a minimum. Bootstrap could be used a la carte here, but I'm being lazy-->
+  <script src="http://libs.cartocdn.com/cartodb.js/v2/cartodb.js"></script>
+  <script src="http://netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+  <script src="http://geosprocket.com/assets/leaflet/leaflet-hash.js"></script>
+</html>
